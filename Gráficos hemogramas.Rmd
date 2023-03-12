@@ -1,0 +1,67 @@
+---
+title: "Gráficos hemogramas"
+author: "Juliana Zapata"
+date: "10/6/2022"
+output: html_document
+---
+```{r}
+library(ggsignif)
+Resumen <- read_excel("~/Desktop/Estadística Prototipo /Resultados de Laboratorio Prototipo/Estadística/Hemograma total.xlsx", 
+    sheet = "SegundoControl+tratamiento")
+Resumen
+```
+
+
+```{r, fig.width=10, fig.height=5}
+Resumen%>%
+  select (c(1:5))%>%
+  gather(key = "variable", value = "valor", -Group) %>% 
+  mutate (variable = factor(variable, levels = c("WBC", "Lymphocyte_Count", "Neutrophil_Count", 
+                                                 "Eosinophils_Count"))) %>% 
+  group_by(variable, Group) %>%  
+  summarise(mean = mean(valor, na.rm = TRUE),
+            sd = sd(valor, na.rm = TRUE))  %>% 
+  ggplot() + 
+  facet_wrap(~variable, scales = "fixed", ncol = 4) + 
+  geom_bar(aes(x= Group, y = mean, fill=Group), stat = 'identity', alpha=0.5, position='dodge') +
+          scale_fill_manual("Group", values = c("Barren" = "forestgreen", "Enriched" = "skyblue")) +
+  geom_errorbar((aes(x=Group, ymin=mean-sd, ymax=mean+sd, fill=Group)),  width = 0.2,
+                position = position_dodge(width = 0.9), colour="orange", alpha=0.9, size=1.0) +
+  theme_classic() +
+  ylim(0,26000)+
+  ggtitle('comparison absolute hematic values')
+
+```
+
+```{r, fig.width=10, fig.height=5}
+Resumen%>%
+  select (c(1,8, 9 ,10, 12))%>%
+  gather(key = "variable", value = "valor", -Grupo) %>% 
+  mutate (variable = factor(variable, levels = c("WBC", "Lymphocyte_Count", "Neutrophil_Count", 
+                                                 "Eosinophils_Count"))) %>% 
+  group_by(variable, Grupo) %>%  
+  summarise(mean = mean(valor, na.rm = TRUE),
+            sd = sd(valor, na.rm = TRUE))  %>% 
+  ggplot() + 
+  facet_wrap(~variable, scales = "fixed", ncol = 4) + 
+  geom_bar(aes(x= Grupo, y = mean, fill=Grupo), stat = 'identity', alpha=0.5, position='dodge') +
+          scale_fill_manual("Grupo", values = c("Control" = "forestgreen", "Tratamiento" = "skyblue")) +
+  geom_errorbar((aes(x=Grupo, ymin=mean-sd, ymax=mean+sd, fill=Grupo)),  width = 0.2,
+                position = position_dodge(width = 0.9), colour="orange", alpha=0.9, size=1.0) +
+  theme_classic() +
+  ylim(0,100)+
+  ggtitle('Comparison of percentage hematic values')
+
+```
+
+```{r, fig.width=10, fig.height=5}
+Resumen%>%
+stat.test <- Resumen %>%
+  group_by(Grupo) %>%
+  t_test(mean ~ Grupo) %>%
+  adjust_pvalue() %>%
+  mutate(y.position = 35)
+stat.test
+
+```
+

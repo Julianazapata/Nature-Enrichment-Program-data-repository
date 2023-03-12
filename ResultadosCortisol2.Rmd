@@ -1,0 +1,873 @@
+---
+title: "Resultados Laboratorio Cortisol Inglés"
+author: "Análisis Estadístico: Tratamiento vs Control"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE,
+                      fig.align = "center")
+# Manejo de datos, gráficos, colores
+library(readxl)
+library(tidyverse)
+library(jcolors)
+library(DT)
+library(plotly)
+library(ggpubr)
+library(broom)
+
+# Análisis multivariado
+library(FactoMineR)
+library(factoextra)
+```
+
+
+# Pruebas de Cortisol 
+
+## Control
+
+### Resumen numérico
+
+```{r}
+datoscortisolc <- read_excel("Base cortisol completa2.xlsx", 
+    sheet = "Cortisol Promedio Control")
+
+datoscortisolc%>% 
+  gather(key = "Variable", value = "value", -Week, -Hour) %>% 
+  group_by(Variable, Week, Hour) %>%
+  summarise(Promedio = round(mean(value, na.rm = TRUE), digits = 2),
+            DE = round(sd(value, na.rm = TRUE), digits = 2),
+            Mínimo = round(min(value, na.rm = TRUE), digits = 2),
+            Máximo = round(max(value, na.rm = TRUE), digits = 2)) %>% 
+  ungroup() %>% 
+  mutate(CV = round((DE/Promedio)*100, digits = 2)) %>% 
+  datatable(extensions = 'Buttons', options = list(
+     dom = 'Bfrtip',
+     buttons = c('csv', 'excel', 'pdf')))
+```
+
+### Gráfico controlxWeek
+
+```{r, fig.width=6, fig.height=4}
+datoscortisolc %>% 
+  mutate(Week = as.character(Week),
+        Hour = as.character(Hour)) %>%
+  gather(key = "variable", value = "valor", -c(Week, Hour)) %>% 
+  mutate(Hour = fct_relevel(Hour, 
+           levels = c("8", "9", "10", "11", "12", "13", "14","15","16","17"))) %>%
+  ggplot(data = ., aes(x = Hour, y = valor)) +
+  scale_color_manual(values = c("orange","skyblue", "forestgreen")) +
+  geom_line(aes(group=Week, color=Week), linetype = 1.5
+            ) +
+  facet_wrap(~variable, scales = "free") +
+  geom_point(size=2, colour="grey50") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  ylim(0,1.0)+
+  labs(x = "Hour", y = "Salivary Cortisol (μg/dL)",
+       title = "B")
+```
+
+## Tratamiento
+
+### Resumen numérico
+
+```{r}
+datoscortisolT <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Cortisol Promedio Tto")
+
+datoscortisolT%>% 
+  gather(key = "Variable", value = "value", -Week, -Hour) %>% 
+  group_by(Variable, Week, Hour) %>%
+  summarise(Promedio = round(mean(value, na.rm = TRUE), digits = 2),
+            DE = round(sd(value, na.rm = TRUE), digits = 2),
+            Mínimo = round(min(value, na.rm = TRUE), digits = 2),
+            Máximo = round(max(value, na.rm = TRUE), digits = 2)) %>% 
+  ungroup() %>% 
+  mutate(CV = round((DE/Promedio)*100, digits = 2)) %>% 
+  datatable(extensions = 'Buttons', options = list(
+     dom = 'Bfrtip',
+     buttons = c('csv', 'excel', 'pdf')))
+```
+
+### Gráfico TratamientoxWeeks
+```{r, fig.width=6, fig.height=4}
+datoscortisolT %>% 
+  mutate(Week = as.character(Week),
+        Hour = as.character(Hour)) %>%
+  gather(key = "variable", value = "valor", -c(Week, Hour)) %>% 
+  mutate(Hour = fct_relevel(Hour, 
+           levels = c("8", "9", "10", "11", "12", "13", "14","15","16","17"))) %>%
+  ggplot(data = ., aes(x = Hour, y = valor)) +
+  scale_color_manual(values = c("orange","skyblue", "forestgreen")) +
+  geom_line(aes(group=Week, color=Week), linetype = 1
+            ) +
+  facet_wrap(~variable, scales = "free") +
+  geom_point(size=2, colour="grey50") +
+  theme_classic() +
+  theme(legend.position = "top") +
+ ylim(0,1.0)+
+  labs(x = "Hour", y = "Salivary Cortisol (μg/dL)",
+       title = "A")
+```
+
+## Gráfico Cortisol Week 1 
+```{r, fig.width=6, fig.height=4}
+Datoscortisol1 <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Semana1")
+
+Datoscortisol1 %>%
+  select (-c(Week))  %>%
+  mutate(Hour =as.character(Hour)) %>%
+  gather(key = "variable", value = "valor", -c(Group, Hour)) %>% 
+  mutate(Hour = fct_relevel(Hour, 
+           levels = c("8", "9", "10", "11", "12", "13", "14","15","16","17"))) %>%
+  ggplot(data = ., aes(x = Hour, y = valor)) +
+  scale_color_manual(values = c("orange","skyblue"))+
+  geom_line(aes(group=Group, color=Group), linetype = 1
+            ) +
+  facet_wrap(~variable, scales = "free") +
+  geom_point(size=2, colour="grey50") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  ylim(0.2, 0.9)+
+  labs(x = "Hour", y = "Salivary Cortisol (μg/dL)",
+       title = "Week 15")
+
+```
+
+## Gráfico Cortisol Week 2
+```{r, fig.width=6, fig.height=4}
+Datoscortisol2 <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Semana2")
+
+Datoscortisol2 %>%
+  select (-c(Week))  %>%
+  mutate(Hour =as.character(Hour)) %>%
+  gather(key = "variable", value = "valor", -c(Group, Hour)) %>% 
+  mutate(Hour = fct_relevel(Hour, 
+           levels = c("8", "9", "10", "11", "12", "13", "14","15","16","17"))) %>%
+  ggplot(data = ., aes(x = Hour, y = valor)) +
+  scale_color_manual(values = c("orange","skyblue"))+
+  geom_line(aes(group=Group, color=Group), linetype = 1
+            ) +
+  facet_wrap(~variable, scales = "free") +
+  geom_point(size=2, colour="grey50") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  ylim(0.2, 0.9)+
+  labs(x = "Hour", y = "Salivary Cortisol (μg/dL)",
+       title = "Week 16")
+```
+
+## Gráfico Cortisol Week 3 
+```{r, fig.width=6, fig.height=4}
+Datoscortisol3 <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Semana3")
+
+Datoscortisol3 %>%
+  select (-c(Week))  %>%
+  mutate(Hour =as.character(Hour)) %>%
+  gather(key = "variable", value = "valor", -c(Group, Hour)) %>% 
+  mutate(Hour = fct_relevel(Hour, 
+           levels = c("8", "9", "10", "11", "12", "13", "14","15","16","17"))) %>%
+  ggplot(data = ., aes(x = Hour, y = valor)) +
+  scale_color_manual(values = c("orange","skyblue")) +
+  geom_line(aes(group=Group, color=Group), linetype = 1
+            ) +
+  facet_wrap(~variable, scales = "free") +
+  geom_point(size=2, colour="grey50") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  ylim(0.2, 0.9)+
+  labs(x = "Hour", y = "Salivary Cortisol (μg/dL)",
+       title = "Week 17")
+```
+## Gráfico Cortisol 
+
+```{r, fig.width=6, fig.height=4}
+Datoscortisol4 <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Control y Tratamiento")
+Datoscortisol4
+```
+## Descriptivo por Group
+
+```{r}
+Datoscortisol4%>% 
+  select(Group, Week, Cortisol)%>%
+  gather(key = "Variable", value = "value", -Group, -Week) %>% 
+  group_by(Variable, Group, Week) %>%
+  summarise(Promedio = round(mean(value, na.rm = TRUE), digits = 2),
+            DE = round(sd(value, na.rm = TRUE), digits = 2),
+            Mínimo = round(min(value, na.rm = TRUE), digits = 2),
+            Máximo = round(max(value, na.rm = TRUE), digits = 2)) %>% 
+  ungroup() %>% 
+  mutate(CV = round((DE/Promedio)*100, digits = 2)) %>% 
+  datatable(extensions = 'Buttons', options = list(
+     dom = 'Bfrtip',
+     buttons = c('csv', 'excel', 'pdf')))
+```
+
+```{r}
+Datoscortisol4%>% 
+  gather(key = "Variable", value = "value", -Group, -Week, -Hour) %>% 
+  group_by(Variable, Group, Week, Hour) %>%
+  summarise(Promedio = round(mean(value, na.rm = TRUE), digits = 2)) %>% 
+  ungroup() %>% 
+  datatable(extensions = 'Buttons', options = list(
+     dom = 'Bfrtip',
+     buttons = c('csv', 'excel', 'pdf')))
+```
+
+## Gráfico Cortisol Máximos de cada Group
+
+```{r, fig.width=6, fig.height=4}
+Datoscortisol4 %>%
+  select(Group, Week, Cortisol)%>%
+  mutate(Week =as.character(Week)) %>%
+  ggplot(data = ., aes(x= Week, y = Cortisol, fill=Group)) +
+  geom_bar(stat="identity", position=position_dodge(), width=0.5)+
+  geom_text(aes(label= Cortisol), vjust=-0.3, size=3.5) +
+  scale_fill_brewer(palette="Reds")+
+  theme_minimal()
+```
+
+## Gráfico Cortisol 10 am
+
+```{r, fig.width=6, fig.height=4}
+Datoscortisol4 <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Cortisol 11am")
+
+Datoscortisol4 %>%
+  select(Group, Week, Cortisol)%>%
+  mutate(Week =as.character(Week)) %>%
+  ggplot(data = ., aes(x= Week, y = Cortisol, fill=Group)) +
+  geom_bar(stat="identity", position=position_dodge(), width=0.5)+
+  geom_text(aes(label= Cortisol), vjust=-0.3, size=3.5) +
+  scale_fill_brewer(palette="Reds")+
+  theme_minimal()
+```
+
+
+## Gráfico Cortisol 16:00
+
+```{r, fig.width=6, fig.height=4}
+Datoscortisol4 <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Cortisol 16 00")
+
+Datoscortisol4 %>%
+  select(Group, Week, Cortisol)%>%
+  mutate(Week =as.character(Week)) %>%
+  ggplot(data = ., aes(x= Week, y = Cortisol, fill=Group)) +
+  geom_bar(stat="identity", position=position_dodge(), width=0.5)+
+  geom_text(aes(label= Cortisol), vjust=-0.3, size=3.5) +
+  scale_fill_brewer(palette="Reds")+
+  theme_minimal()
+```
+
+# Estadística inferencial Cortisol
+```{r}
+Datoscortisol <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Control y Tratamiento")
+Datoscortisol
+```
+
+# Prueba de normalidad Shapiro-Wilk 
+
+- Si las distribuciones son tipo gaussianas, entonces podremos usar correlaciones paramétricas como el coeficiente de correlación de Pearson. De lo contrario, las correlaciones será de tipo no paramétrico (Spearman, Tau-Kendall, otras...).
+- La validación del supuesto de normalidad puede realizarse de forma gráfica con histogramas, densidades o [gráficos cuantil-cuantil (QQNorm)](https://es.wikipedia.org/wiki/Gr%C3%A1fico_Q-Q). También es posible implementar contraste de hipótesis a través del [test de Shapiro Wilk](https://es.wikipedia.org/wiki/Test_de_Shapiro%E2%80%93Wilk), bajo el siguiente juego de hipótesis:
+
+$$H_0: X \sim N(\mu,\sigma) \\
+H_1: X \nsim N(\mu,\sigma)$$
+
+- **Conclusión:** si el valor p es mayor que el alfa (en nuestro caso 0.05 o 5%) no se rechaza la hipótesis nula, es decir, que existe evidencia para manifestar que la variable en cuestión se distribuye de forma normal.
+
+```{r}
+Datoscortisol %>% 
+  select_if(is.numeric) %>% 
+  select(-c(Week, Hour)) %>% 
+  gather(key = "variable", value = "valor") %>% 
+  group_by(variable) %>% 
+  summarise(valor = list(valor)) %>%
+  ungroup() %>% 
+  group_by(variable) %>% 
+  mutate(shapiro_valorP = round(shapiro.test(unlist(valor))$p.value, digits = 5),
+         Resultado = if_else(shapiro_valorP <= 0.05, true = "No normalidad",
+                             false = "Sí normalidad"))
+```
+
+# Anovas
+
+##Por Group
+
+```{r}
+Modelo1Cortisol <- Datoscortisol %>% 
+  select(Cortisol, Group) %>% 
+  group_by(Group) %>% 
+  mutate(pesos = 1/var(Cortisol))
+modeloGroup <- aov(Cortisol ~ Group, data = Modelo1Cortisol)
+summary(modeloGroup)
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(modeloGroup)
+```
+
+```{r}
+TukeyHSD(modeloGroup)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(modeloGroup), las = 1)
+```
+
+##Por Group y Hour
+```{r}
+modelo2Cortisol <- aov((Cortisol) ~ Group * Hour, 
+                data = Datoscortisol )
+summary( modelo2Cortisol ) 
+```
+
+```{r}
+TukeyHSD(modelo2Cortisol)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(modelo2Cortisol), las = 1)
+```
+
+##Por Week
+
+```{r}
+Modelo3Cortisol <- Datoscortisol %>%
+  select(Week, Cortisol)%>%
+  mutate(Week1 =as.factor(Week)) %>%
+  select(Cortisol, Week1) %>% 
+  group_by(Week1) %>% 
+  mutate(pesos = 1/var(Cortisol))
+modeloWeek1 <- aov(Cortisol ~ Week1, data = Modelo3Cortisol)
+summary(modeloWeek1)
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(modeloWeek1)
+```
+
+```{r}
+TukeyHSD(modeloWeek1)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(modeloWeek1), las = 1)
+```
+
+
+
+```{r, fig.width=6, fig.height=4}
+Datoscortisol1 <- read_xlsx("Base cortisol completa2.xlsx", 
+    sheet = "Semana1")
+Datoscortisol1
+```
+
+##Anova Week 15
+```{r}
+Week1 <- Datoscortisol1 %>%
+  select(Group, Cortisol)%>%
+  mutate(Group1 =as.factor(Group)) %>%
+  select(Cortisol, Group1) %>% 
+  group_by(Group1) %>% 
+  mutate(pesos = 1/var(Cortisol))
+modWeek1 <- aov(Cortisol ~ Group1, data = Week1)
+summary(modWeek1)
+```
+
+```{r, fig.width=9, fig.height=8}
+Datoscortisol1 %>%
+  select(-c(Hour, Week)) %>% 
+  gather(key = "variable", value = "valor", -Group) %>% 
+  group_by(variable, Group) %>% 
+  summarise(promedio = mean(valor, na.rm = TRUE),
+            de = sd(valor, na.rm = TRUE))  %>% 
+  ggplot(aes(x = Group, y = promedio, color = Group,
+             ymin  = promedio - de,
+             ymax = promedio + de)) +
+facet_wrap(~variable, scales = "free", ncol = 3) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  scale_fill_jcolors(palette = "pal7") +
+  theme_light() 
+```
+
+
+##Anova Week 16
+```{r}
+Week2 <- Datoscortisol2 %>%
+  select(Group, Cortisol)%>%
+  mutate(Group1 =as.factor(Group)) %>%
+  select(Cortisol, Group1) %>% 
+  group_by(Group1) %>% 
+  mutate(pesos = 1/var(Cortisol))
+modWeek2 <- aov(Cortisol ~ Group1, data = Week2)
+summary(modWeek2)
+```
+
+```{r, fig.width=9, fig.height=8}
+Datoscortisol2 %>%
+  select(-c(Hour, Week)) %>% 
+  gather(key = "variable", value = "valor", -Group) %>% 
+  group_by(variable, Group) %>% 
+  summarise(promedio = mean(valor, na.rm = TRUE),
+            de = sd(valor, na.rm = TRUE))  %>% 
+  ggplot(aes(x = Group, y = promedio, color = Group,
+             ymin  = promedio - de,
+             ymax = promedio + de)) +
+facet_wrap(~variable, scales = "free", ncol = 3) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  scale_fill_jcolors(palette = "pal7") +
+  theme_light() 
+```
+
+##Anova Week 17
+```{r}
+Week3 <- Datoscortisol3 %>%
+  select(Group, Cortisol)%>%
+  mutate(Group1 =as.factor(Group)) %>%
+  select(Cortisol, Group1) %>% 
+  group_by(Group1) %>% 
+  mutate(pesos = 1/var(Cortisol))
+modWeek3 <- aov(Cortisol ~ Group1, data = Week3)
+summary(modWeek3)
+```
+
+```{r, fig.width=9, fig.height=8}
+Datoscortisol3 %>%
+  select(-c(Hour, Week)) %>% 
+  gather(key = "variable", value = "valor", -Group) %>% 
+  group_by(variable, Group) %>% 
+  summarise(promedio = mean(valor, na.rm = TRUE),
+            de = sd(valor, na.rm = TRUE))  %>% 
+  ggplot(aes(x = Group, y = promedio, color = Group,
+             ymin  = promedio - de,
+             ymax = promedio + de)) +
+facet_wrap(~variable, scales = "free", ncol = 3) +
+  geom_point() +
+  geom_errorbar(width = 0.2) +
+  scale_fill_jcolors(palette = "pal7") +
+  theme_light() 
+```
+
+
+##Por Group y Week
+```{r}
+modelo4Cortisol <- aov((Cortisol) ~ Group * Week, 
+                data = Datoscortisol )
+summary( modelo4Cortisol ) 
+```
+
+```{r}
+TukeyHSD(modelo4Cortisol)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(modelo2Cortisol), las = 1)
+```
+##Por Hour
+
+```{r}
+ModeloHour <- Datoscortisol %>%
+  select(Hour, Cortisol)%>%
+  mutate(Hour =as.factor(Hour)) %>%
+  select(Cortisol, Hour) %>% 
+  group_by(Hour) %>% 
+  mutate(pesos = 1/var(Cortisol))
+modeloHour <- aov(Cortisol ~ Hour, data = ModeloHour)
+summary(modeloHour)
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(modeloHour)
+```
+
+```{r}
+TukeyHSD(modeloHour)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(modeloHour), las = 1)
+```
+
+##Por Group y Hour
+```{r}
+modeloHourCortisol <- aov((Cortisol) ~ Group * Hour , 
+                data = Datoscortisol )
+summary( modeloHourCortisol ) 
+```
+
+```{r}
+TukeyHSD(modeloHourCortisol)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(modeloHourCortisol), las = 1)
+```
+
+
+## Regresión Lineal Simple
+
+- **Gráfico de dispersión:**
+
+### Hour
+
+```{r, fig.width=9}
+library(ggpubr)
+ggarrange(
+  Datoscortisol %>% 
+    ggplot(aes(x = Hour, y = Cortisol)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Escala original"))
+```
+
+```{r}
+rls_cortisol <- lm(Cortisol ~ Hour, data = Datoscortisol)
+summary(rls_cortisol)
+par(mfrow = c(2, 2))
+plot(rls_cortisol)
+```
+
+### Group
+
+```{r, fig.width=9}
+library(ggpubr)
+ggarrange(
+  Datoscortisol %>% 
+    ggplot(aes(x = Group, y = Cortisol)) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Escala original"))
+```
+
+```{r}
+rls_cortisol <- lm(Cortisol ~ Group, data = Datoscortisol)
+summary(rls_cortisol)
+par(mfrow = c(2, 2))
+plot(rls_cortisol)
+```
+
+## Regresión Lineal Múltiple
+
+```{r}
+mod_mult <- lm(Cortisol ~ Group + Hour,
+                data = Datoscortisol)
+summary(mod_mult)
+```
+
+## Regresión Lineal Múltiple
+
+```{r}
+mod_mult <- lm(Cortisol ~ Group + Week,
+                data = Datoscortisol)
+summary(mod_mult)
+```
+
+#Área bajo la curva
+
+```{r}
+library(agricolae)
+Datoscortisol1
+audpc(Datoscortisol1[1:10, ]$Cortisol, Datoscortisol1[1:10, ]$Hour, type = "absolute")
+
+
+```
+```{r}
+library(agricolae)
+Datoscortisol3
+audpc(Datoscortisol3[1:10, ]$Cortisol, Datoscortisol2[1:10, ]$Hour, type = "absolute")
+
+```
+
+```{r, fig.width=9, fig.height=8}
+library(ggplot2)
+library(dplyr)
+
+Datoscortisol %>%
+  group_by(Group) %>%  
+  summarise(mean = mean(Cortisol, na.rm = TRUE),
+            sd = sd(Cortisol, na.rm = TRUE))  %>% 
+  ggplot() + 
+  geom_bar(aes(x = Group, y = mean), stat = 'identity', fill="forestgreen", alpha=0.5) +
+  geom_errorbar((mapping = aes(x=Group, ymin=mean-sd, ymax=mean+sd)), width=0.4, 
+                 colour="orange", alpha=0.9, size=1.5) +
+  ylim(0,1.0)+
+  ggtitle('Comparisión cortisol levels')
+```
+
+```{r, fig.width=5, fig.height=4}
+Datoscortisol %>%
+  mutate(Week=as.character(Week))%>% 
+  group_by(Group, Week) %>%  
+  summarise(n=n(),
+            mean = mean(Cortisol, na.rm = TRUE),
+            sd = sd(Cortisol, na.rm = TRUE))  %>% 
+            mutate( se=sd/sqrt(n)) %>% 
+  ggplot() + 
+  geom_bar(aes(x= Week, y = mean, fill=Group), stat = 'identity', alpha=0.5, position='dodge') +
+          scale_fill_manual("Group", values = c("Barren" = "forestgreen", "Enriched" = "skyblue")) +
+  geom_errorbar((aes(x=Week, ymin=mean-se, ymax=mean+se, fill=Group)),  width = 0.2,
+                position = position_dodge(width = 0.9), colour="orange", alpha=0.9, size=1.0) +
+  theme_classic() +
+  ylab("Mean Salivary Cortisol") +
+  ylim(0,0.5)+
+  ggtitle('Comparision cortisol levels')
+```
+```{r, fig.width=9, fig.height=8}
+Datoscortisol %>%
+  mutate(Week=as.character(Week))%>% 
+  group_by(Group, Week) %>%  
+  summarise(n=n(),
+            mean = mean(Cortisol, na.rm = TRUE),
+            sd = sd(Cortisol, na.rm = TRUE))  %>% 
+            mutate( se=sd/sqrt(n)) 
+```
+
+# Área bajo la curva Amilasa y Cortisol
+
+```{r, fig.width=5, fig.height=4}
+areabajolacurva1 <- read_xlsx("Áreabajolacurva.xlsx",
+                             sheet = "Hoja2")
+areabajolacurva1 %>%
+  select(Group, Hormone, AUC)%>%  
+  group_by(Group, Hormone) %>%  
+  summarise(n=n(),
+            mean = mean(AUC, na.rm = TRUE),
+            sd = sd(AUC, na.rm = TRUE))  %>% 
+            mutate( se=sd/sqrt(n)) %>% 
+  ggplot() + 
+  geom_bar(aes(x= Hormone, y = mean, fill=Group), stat = 'identity', alpha=0.5, position='dodge') +
+          scale_fill_manual("Group", values = c("Barren" = "forestgreen", "Enriched" = "skyblue")) +
+  geom_errorbar((aes(x=Hormone, ymin=mean-se, ymax=mean+se, fill=Group)),  width = 0.2,
+                position = position_dodge(width = 0.9), colour="orange", alpha=0.9, size=1.0) +
+  theme_classic() +
+  ylab("Mean Salivary Cortisol") +
+  ggtitle('Comparison of hormone levels')
+```
+# Prueba de normalidad Shapiro-Wilk para AUCc, AUCa, AOC, COA
+
+- Si las distribuciones son tipo gaussianas, entonces podremos usar correlaciones paramétricas como el coeficiente de correlación de Pearson. De lo contrario, las correlaciones será de tipo no paramétrico (Spearman, Tau-Kendall, otras...).
+- La validación del supuesto de normalidad puede realizarse de forma gráfica con histogramas, densidades o [gráficos cuantil-cuantil (QQNorm)](https://es.wikipedia.org/wiki/Gr%C3%A1fico_Q-Q). También es posible implementar contraste de hipótesis a través del [test de Shapiro Wilk](https://es.wikipedia.org/wiki/Test_de_Shapiro%E2%80%93Wilk), bajo el siguiente juego de hipótesis:
+
+$$H_0: X \sim N(\mu,\sigma) \\
+H_1: X \nsim N(\mu,\sigma)$$
+
+- **Conclusión:** si el valor p es mayor que el alfa (en nuestro caso 0.05 o 5%) no se rechaza la hipótesis nula, es decir, que existe evidencia para manifestar que la variable en cuestión se distribuye de forma normal.
+
+```{r, fig.width=9, fig.height=8}
+areabajolacurva <- read_xlsx("Áreabajolacurva.xlsx")
+areabajolacurva
+```
+
+```{r}
+areabajolacurva %>% 
+  select_if(is.numeric) %>% 
+  select(-c(Week)) %>% 
+  gather(key = "variable", value = "valor") %>% 
+  group_by(variable) %>% 
+  summarise(valor = list(valor)) %>%
+  ungroup() %>% 
+  group_by(variable) %>% 
+  mutate(shapiro_valorP = round(shapiro.test(unlist(valor))$p.value, digits = 5),
+         Resultado = if_else(shapiro_valorP <= 0.05, true = "No normalidad",
+                             false = "Sí normalidad"))
+```
+
+# Anovas AUC
+
+##Comparando AUC de las Hormones
+
+### Comparación neta Cortisol-Amilasa
+
+- No hay diferencias significativas entre la comparación neta del cortisol y la amilasa
+
+```{r}
+ModeloHormones <- aov(AUCa ~ AUCc,
+                data = areabajolacurva )
+summary(ModeloHormones) 
+```
+### Comparación por Groups AUC Cortisol-Amilasa
+
+-Hay diferencias significativas entre el AUC del cortisol y la amilasa del Group control y tratamiento
+
+```{r}
+ModeloHormones2 <- areabajolacurva %>%
+  select(Group, AUCa, AUCc)%>%
+  mutate(Group =as.factor(Group)) %>%
+  group_by(Group) %>% 
+  mutate(pesos = 1/var(AUCa, AUCc))
+ModeloHormones2 <- aov((AUCa * AUCc) ~Group, 
+                data = areabajolacurva )
+summary(ModeloHormones2 ) 
+
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(ModeloHormones2)
+```
+
+
+```{r}
+TukeyHSD(ModeloHormones2)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(ModeloHormones2), las = 1)
+```
+### Comparación Específica AUC del Cortisol y de la amilasa
+
+-Es más significativa la diferencias significativas entre el AUC entre el Group control y tratamiento de la amilasa que el AUC del cortisol.
+
+```{r}
+ModeloHormones3 <- areabajolacurva %>%
+  select(Group,AUCc)%>%
+  mutate(Group =as.factor(Group)) %>%
+  group_by(Group) %>% 
+  mutate(pesos = 1/var(AUCc))
+ModeloHormones3 <- aov(AUCc ~Group, 
+                data = areabajolacurva )
+summary(ModeloHormones3 ) 
+```
+
+```{r}
+TukeyHSD(ModeloHormones3)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(ModeloHormones3), las = 1)
+```
+
+
+```{r}
+ModeloHormones4 <- areabajolacurva %>%
+  select(Group, AUCa)%>%
+  mutate(Group =as.factor(Group)) %>%
+  group_by(Group) %>% 
+  mutate(pesos = 1/var(AUCa))
+ModeloHormones4 <- aov(AUCa ~Group, 
+                data = areabajolacurva )
+summary(ModeloHormones4 ) 
+
+```
+
+```{r}
+TukeyHSD(ModeloHormones4)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(ModeloHormones4), las = 1)
+```
+
+##Comparando los indices de las Hormones
+
+### Comparación neta AOC-COA
+
+- Hay diferencias significativas entre la comparación neta del cortisol y la amilasa
+
+```{r}
+Modeloindices <- aov(AOC ~ COA,
+                data = areabajolacurva )
+summary(Modeloindices) 
+```
+### Comparación por Groups de los indices
+
+-Hay diferencias significativas entre el AUC del cortisol y la amilasa del Group control y tratamiento
+
+```{r}
+Modeloindices2 <- areabajolacurva %>%
+  select(Group, AOC, COA)%>%
+  mutate(Group =as.factor(Group)) %>%
+  group_by(Group) %>% 
+  mutate(pesos = 1/var(AOC, COA))
+Modeloindices2 <- aov((AOC * COA) ~Group, 
+                data = areabajolacurva )
+summary(Modeloindices2 ) 
+
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(Modeloindices2)
+```
+
+
+```{r}
+TukeyHSD(Modeloindices2)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(Modeloindices2), las = 1)
+```
+### Comparación Específica por Group del AOC Y COA
+
+-Es más significativa la diferencias significativas entre el AUC entre el Group control y tratamiento de la amilasa que el AUC del cortisol.
+
+```{r}
+Modeloindices3 <- areabajolacurva %>%
+  select(Group,AOC)%>%
+  mutate(Group =as.factor(Group)) %>%
+  group_by(Group) %>% 
+  mutate(pesos = 1/var(AOC))
+Modeloindices3 <- aov(AOC ~Group, 
+                data = areabajolacurva )
+summary(Modeloindices3) 
+```
+
+```{r}
+TukeyHSD(Modeloindices3)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(Modeloindices3), las = 1)
+```
+
+
+```{r}
+Modeloindices4 <- areabajolacurva %>%
+  select(Group, COA)%>%
+  mutate(Group =as.factor(Group)) %>%
+  group_by(Group) %>% 
+  mutate(pesos = 1/var(COA))
+Modeloindices4 <- aov(COA ~Group, 
+                data = areabajolacurva )
+summary(Modeloindices4 ) 
+
+```
+
+```{r}
+TukeyHSD(Modeloindices4)
+```
+
+```{r, fig.width=13}
+par(mar=c(5, 15, 2, 1))
+plot(TukeyHSD(Modeloindices4), las = 1)
+```
+

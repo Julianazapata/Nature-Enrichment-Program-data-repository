@@ -1,0 +1,369 @@
+---
+title: "Emociones y parámetros acústicos"
+subtitle: "Paper 3"
+author: "Juliana Zapata"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE,
+                      fig.align = "center",
+                      fig.width = 9)
+```
+
+# Bibliotecas
+
+```{r}
+library(tidyverse) # manejo y visualización de datos
+library(janitor) # edición de nombres
+library(readxl) # lectura de datos en excel
+library(FactoMineR) # análisis multivariado
+library(factoextra) # funciones extras para análisis multivariado
+library(explor) # app shiny para ver resultados análisis multivariado
+library(DT) # Imprimir tablas interactivas
+library(corrplot) # correlograma
+library(splines) # Agregar no linealidad a dispersiones
+library(mgcv) # Modelos GAM
+library(ggpubr)
+
+# Personalizano tema de ggplot2
+theme_set(theme_minimal())
+```
+
+# Datos
+
+```{r}
+datos <- read_excel("~/Desktop/Github/Prototipo/Paper 3/QBA.xlsx") 
+datos
+```
+# Descriptivo
+
+```{r}
+library(DT)
+datos %>% 
+  select_if(is.numeric) %>% 
+  select(-c(Semana, Master, Centroide:DensidadVertical)) %>% 
+  gather(key = "variable", value = "valor") %>% 
+  group_by(variable)  %>%
+  summarise(Mínimo = round(min(valor, na.rm = TRUE), digits = 2),
+            Media  = round(mean(valor, na.rm = TRUE), digits = 2),
+            Máximo = round(max(valor, na.rm = TRUE), digits = 2),
+            DE     = round(sd(valor, na.rm = TRUE), digits = 2),
+            Q1     = round(quantile(valor, probs = 0.25, na.rm = TRUE), digits = 2),
+            Q2     = round(quantile(valor, probs = 0.50, na.rm = TRUE), digits = 2),
+            Q3     = round(quantile(valor, probs = 0.75, na.rm = TRUE), digits = 2),
+            n = n()) %>% 
+  ungroup() %>% 
+  mutate(CV = round((DE/Media)*100, digits = 2)) %>% 
+  datatable(extensions = 'Buttons', options = list(
+     dom = 'Bfrtip',
+     buttons = c('csv', 'excel', 'pdf')))
+```
+
+
+# Análisis de componentes principales
+
+## Ajuste
+
+```{r}
+acp <- PCA(X = datos %>% 
+             select(Activo:Feliz)%>%  
+             select(-c(Temeroso, intranquilo, Apático, Frustado, Aburrido)), 
+             scale.unit = TRUE,
+           ncp = 3, graph = FALSE)
+```
+
+## Retención de variabilidad
+
+```{r}
+acp$eig %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "componente") %>%
+  mutate(across(where(is.numeric), round, digits = 2)) %>% 
+  datatable(rownames = FALSE,
+            extensions = 'Buttons',
+            options = list(dom = 'Bfrtip',
+                           buttons = c('excel')))
+```
+
+# ACP con Dimensiones
+
+```{r} 
+acp <- PCA(X = datos %>% 
+             select(Activo:Feliz)%>%  
+             select(-c(Temeroso, intranquilo, Apático, Frustado, Aburrido)),
+             scale.unit = TRUE,  graph = FALSE, ncp = 7)
+summary(acp)
+```
+
+```{r}
+fviz_screeplot(acp, ncp = 7)
+```
+## Correlaciones {.tabset .tabset-fade .tabset-pills}
+
+### Tabla
+
+```{r}
+acp$var$coord %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "adjetivo") %>%
+  mutate(across(where(is.numeric), round, digits = 2)) %>% 
+  datatable(rownames = FALSE,
+            extensions = 'Buttons',
+            options = list(dom = 'Bfrtip',
+                           buttons = c('excel')))
+```
+## ACP gráficos PC1-PC2
+```{r, fig.width=10, fig.height=5}
+fviz_pca_var(acp, axes = c(1, 2),  
+               select.var = list(contrib = 15), graph=FALSE,
+               geom = c("arrow", "text"), col.var = "black", labelsize=4,
+               fill.var = "grey", alpha.var = 0, col.quanti.sup = "blue",
+               repel = TRUE) +
+        theme(panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank()) +
+        labs(x = "PC1(44,78%)", y = "PC2(19.14%)",
+        title = "A", color = "")
+
+```
+```{r, fig.height=8, width=10}
+fviz_pca_ind(X = acp, axes = c(1, 2), geom = c("point", "text", size = 10), repel = TRUE, habillage = "none",
+  palette = NULL, addEllipses = FALSE, col.ind = "darkslategray4", pointsize=4, labelsize = 6,
+  fill.ind = "white", col.ind.sup = "blue", alpha.ind = 1,
+  select.ind = list(name = NULL, cos2 = NULL, contrib = NULL)
+  )
+
+```
+
+
+## ACP gráficos
+
+```{r, fig.width=10, fig.height=5}
+ggarrange(
+fviz_pca_var(acp, axes = c(1, 2),  
+               select.var = list(contrib = 15), graph=FALSE,
+               geom = c("arrow", "text"), col.var = "black", labelsize=4,
+               fill.var = "grey", alpha.var = 0, col.quanti.sup = "blue",
+               repel = TRUE) +
+        theme(panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank()) +
+        labs(x = "PC1(34.96%)", y = "PC2(20.29%)",
+        title = "A", color = ""),
+
+  fviz_pca_var(acp, axes = c(1, 3),  
+               select.var = list(contrib = 15), graph=FALSE,
+               geom = c("point", "text"), col.var = "black", labelsize=4,
+               fill.var = "grey", alpha.var = 0, col.quanti.sup = "blue",
+               repel = TRUE) +
+        theme(panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank()) +
+        labs(x = "PC1(34.96%)", y = "PC3(12.25%)",
+        title = "B", color = ""),
+    ncol = 2)
+```
+
+## ACP gráficos
+
+```{r, fig.width=10, fig.height=5}
+ggarrange(
+fviz_pca_var(acp, axes = c(1, 2),  
+               select.var = list(contrib = 15), graph=FALSE,
+               geom = c("arrow", "text"), col.var = "black", labelsize=4,
+               fill.var = "grey", alpha.var = 0, col.quanti.sup = "blue",
+               repel = TRUE) +
+        theme(panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank()) +
+        labs(x = "PC1(34.96%)", y = "PC2(20.29%)",
+        title = "A", color = ""),
+
+  fviz_pca_ind(acp, axes = c(1, 2),  
+               select.var = list(contrib = 16), graph=FALSE,
+               geom = c("text", "point"), col.var = "black", labelsize=4,
+               fill.var = "white", alpha.var = 0, col.quanti.sup = "blue",
+               repel = TRUE) +
+        geom_vline(xintercept = 0, size = 0.1, lty = 2, color = "Black") +
+        geom_hline(yintercept = 0, size = 0.1, lty = 2, color = "Black") +
+        theme(panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank()) +
+        labs(x = "PC1(34.96%)", y = "PC2(20.29%)",
+        title = "B", color = ""),
+    ncol = 2)
+```
+
+### Gráfico
+
+```{r}
+acp$var$coord %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = "adjetivo") %>% 
+  pivot_longer(cols = -adjetivo) %>% 
+  mutate(signo = ifelse(value > 0, "Positivo", "Negativo")) %>% 
+  ggplot(aes(x = adjetivo, y = value, color = signo, fill = signo)) +
+  facet_wrap(~name, scales = "free") +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(y = "Correlación", x = "")
+```
+
+## Índices
+
+- **Nota:** vamos a exportar los datos con los índices obtenidos del análisis de componentes principales.
+
+```{r}
+#writexl::write_xlsx(df_indices, path = "datos_indices_acp_paper2.xlsx")
+df_indices <- datos %>% 
+  mutate(Positive_index = acp$ind$coord[, 1],
+         Neutral_index= acp$ind$coord[, 2])
+df_indices
+```
+
+
+
+
+# Parámetros acústicos
+
+## Correlación {.tabset .tabset-fade .tabset-pills}
+
+### Gráfico cuantil-cuantil
+
+```{r}
+datos %>% 
+  select(Centroide:DensidadVertical) %>% 
+  pivot_longer(cols = everything()) %>% 
+  ggplot(aes(sample = value)) +
+  facet_wrap(~name, scales = "free") +
+  geom_qq() +
+  geom_qq_line()
+```
+
+### Shapiro Wilk
+
+```{r}
+datos %>% 
+  select(Centroide:DensidadVertical) %>% 
+  pivot_longer(cols = everything()) %>% 
+  group_by(name) %>% 
+  summarise(valor_p_shapiro = shapiro.test(value)$p.value) %>% 
+  ungroup()
+```
+
+### Spearman
+
+```{r}
+datos %>% 
+  select(Centroide:DensidadVertical) %>% 
+  cor(method = "spearman") %>% 
+  corrplot(
+    diag = FALSE,
+    type = "lower",
+    tl.col = "black",
+    tl.srt = 10,
+    method = "pie"
+  )
+```
+```{r, fig.width=9}
+library(Hmisc)
+mtx_cor1 <- df_indices %>% 
+  select_if(is.numeric) %>% 
+  select(-c(Semana, Master, Activo:Afligido)) %>% 
+  as.matrix() %>% 
+  rcorr(type = "spearman")
+
+matriz_cor <- mtx_cor1$r[9:10, -c(9:10)] 
+matrix_p <- mtx_cor1$P[9:10, -c(9:10)]   
+
+corrplot(
+  corr = matriz_cor,
+  method = 'number',
+  col = c("#D7D29E", "#6794a7"), bg = ("white"), 
+  tl.col = "black",
+  tl.srt = 50,
+  number.cex = 0.9,
+  addgrid.col = "black"
+  )
+```
+```{r, fig.width=9}
+valores_p <- cor.mtest(df_indices  %>% 
+  select(c(Centroide:DensidadVertical, Positive_index:Neutral_index)))$p %>% 
+  as.data.frame() %>% 
+  select(Positive_index, Neutral_index)  %>% 
+  slice(-c(9, 10 , 11)) %>% 
+  as.matrix() %>% 
+  t()
+
+df_indices %>%
+  select(c(Centroide:DensidadVertical, Positive_index:Neutral_index)) %>%
+  cor(method = "spearman") %>%
+  as.data.frame() %>%
+  select(Positive_index, Neutral_index)  %>%
+  slice(-c(9, 10 , 11)) %>%
+  as.matrix() %>%
+  t() %>%
+  corrplot(
+    sig.level = 0.05,
+    method = 'number',
+    col = c("#D7D29E", "#6794a7"), bg = ("white"), 
+    tl.col = "black",
+    tl.srt = 50,
+    addgrid.col = "black",
+    number.cex = 1.5,
+    p.mat = valores_p)
+```
+
+# Distribuciones índices {.tabset .tabset-fade .tabset-pills}
+
+## Densidades
+
+```{r}
+df_indices %>% 
+  select(Positive_index:Neutral_index) %>% 
+  pivot_longer(cols = everything()) %>% 
+  ggplot(aes(x = value)) +
+  facet_wrap(~name, scales = "free") +
+  geom_density()
+```
+
+## Cuantil-Cuantil
+
+```{r}
+df_indices %>% 
+  select(Positive_index:Neutral_index) %>% 
+  pivot_longer(cols = everything()) %>% 
+  ggplot(aes(sample = value)) +
+  facet_wrap(~name, scales = "free") +
+  geom_qq() +
+  geom_qq_line()
+```
+
+## Shapiro Wilk
+
+```{r}
+df_indices %>% 
+  select(Positive_index:Neutral_index) %>% 
+  pivot_longer(cols = everything()) %>% 
+  group_by(name) %>% 
+  summarise(valor_p_shapiro = shapiro.test(value)$p.value) %>% 
+  ungroup()
+```

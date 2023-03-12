@@ -1,0 +1,363 @@
+---
+title: "Análisis de estrés"
+subtitle: "Paper 3 - Biomarcadores"
+author: "Juliana Zapata"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      smooth_scroll: false
+      collapsed: false
+    code_folding: hide
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE,
+                      fig.align = "center",
+                      fig.width = 8)
+```
+
+# Bibliotecas
+
+```{r}
+library(tidyverse) # manejo y visualización de datos
+library(janitor) # edición de nombres
+library(readxl) # lectura de datos en excel
+library(FactoMineR) # análisis multivariado
+library(factoextra) # funciones extras para análisis multivariado
+library(explor) # app shiny para ver resultados análisis multivariado
+library(DT) # Imprimir tablas interactivas
+library(corrplot) # correlograma
+library(ggridges) # Densidades con tiempo en eje Y
+
+# Personalizano tema de ggplot2
+theme_set(theme_minimal())
+```
+
+# Datos
+
+```{r}
+datos_cortisol <- read_excel("Biomarcadores de estrés.xlsx", sheet = "Cortisol")
+datos_amilasa <- read_excel("Biomarcadores de estrés.xlsx", sheet = "Amilasa")
+datos_total <- inner_join(x = datos_cortisol, y = datos_amilasa) %>% 
+  clean_names() %>% 
+  mutate(aoc = amilasa / cortisol)
+datos_total
+```
+
+# Gráficos
+
+## Promedio +- DE global
+
+```{r, fig.height=4, fig.width=8}
+datos_total %>% 
+  select(-c(semana, hora, amilasa, aoc)) %>% 
+  gather(key = "Variable", value = "value", -grupo) %>% 
+  group_by(Variable, grupo) %>%
+  summarise(Promedio = round(mean(value, na.rm = TRUE), digits = 2),
+            DE = round(sd(value, na.rm = TRUE), digits = 2),
+            Mínimo = round(min(value, na.rm = TRUE), digits = 2),
+            Máximo = round(max(value, na.rm = TRUE), digits = 2)) %>% 
+  ungroup() %>% 
+  mutate(CV = round((DE/Promedio)*100, digits = 2)) %>% 
+  datatable(extensions = 'Buttons', options = list(
+     dom = 'Bfrtip',
+     buttons = c('csv', 'excel', 'pdf')))
+
+```
+
+## Promedio +- DE detallada
+
+#Cortisol
+
+```{r, fig.height=4, fig.width=8}
+datos_total %>% 
+  select(-c(semana, amilasa, aoc)) %>% 
+  pivot_longer(cols = -c(grupo, hora)) %>% 
+  mutate(hora = as.factor(hora)) %>% 
+  mutate(hora = as.factor(hora)) %>% 
+  group_by(grupo, hora, name) %>% 
+  summarise(promedio = mean(value, na.rm = TRUE),
+            desviacion = sd(value, na.rm = TRUE),
+            coef_var = desviacion / promedio) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = hora, y = promedio, color = grupo)) +
+  scale_color_manual(values = c("orange","skyblue"))+
+  facet_wrap(~name, scales = "free") +
+  geom_point(size=2, colour="grey50") +
+  geom_line(aes(group = grupo, color=grupo), linetype = 1) +
+  geom_errorbar(aes(ymin = promedio - desviacion, 
+                    ymax = promedio + desviacion),
+                    width = 0.15)+
+  theme_classic() +
+  theme(legend.position = "top") +
+  ylim(0.2, 0.9)+
+  labs(x = "Hour", y = "Salivary Cortisol (μg/dL)",
+       title = "Week 16")
+
+
+```
+
+#todos
+
+```{r, fig.height=4, fig.width=8}
+datos_total %>% 
+  select(-c(semana)) %>% 
+  pivot_longer(cols = -c(grupo, hora)) %>% 
+  mutate(hora = as.factor(hora)) %>% 
+  group_by(grupo, hora, name) %>% 
+  summarise(promedio = mean(value, na.rm = TRUE),
+            desviacion = sd(value, na.rm = TRUE),
+            coef_var = desviacion / promedio) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = hora, y = promedio, color = grupo)) +
+  facet_wrap(~name, scales = "free") +
+  geom_point() +
+  geom_line(aes(group = grupo)) +
+  geom_errorbar(aes(ymin = promedio - desviacion, 
+                    ymax = promedio + desviacion),
+                width = 0.15)
+```
+
+## Distribución por horas {.tabset .tabset-fade .tabset-pills}
+
+### Cortisol
+
+```{r}
+datos_total %>%
+  ggplot(aes(x = cortisol, y = as.factor(hora), fill = grupo)) +
+  geom_density_ridges(alpha = 0.8)
+```
+
+### Amilasa
+
+```{r}
+datos_total %>%
+  ggplot(aes(x = amilasa, y = as.factor(hora), fill = grupo)) +
+  geom_density_ridges(alpha = 0.8)
+```
+
+### AOC
+
+```{r}
+datos_total %>%
+  ggplot(aes(x = aoc, y = as.factor(hora), fill = grupo)) +
+  geom_density_ridges(alpha = 0.8)
+```
+
+## Variables normalizadas
+
+```{r}
+datos_total %>% 
+  group_by(semana) %>% 
+  mutate(cortisol = scale(cortisol),
+         amilasa = scale(amilasa),
+         aoc = scale(aoc)) %>% 
+  ungroup() %>% 
+  select(-c(semana)) %>%
+  pivot_longer(cols = -c(grupo, hora)) %>% 
+  mutate(hora = as.factor(hora)) %>% 
+  group_by(grupo, hora, name) %>% 
+  summarise(promedio = mean(value, na.rm = TRUE),
+            desviacion = sd(value, na.rm = TRUE),
+            coef_var = desviacion / promedio) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = hora, y = promedio, color = name)) +
+  facet_wrap(~grupo) +
+  geom_line(aes(group = name)) +
+  geom_hline(yintercept = 0, lty = 2, color = "black")
+```
+
+## Variabilidad promedio
+
+```{r}
+datos_total %>% 
+  mutate(hora = as.factor(hora)) %>% 
+  group_by(semana, grupo) %>% 
+  summarise(promedio = mean(cortisol, na.rm = TRUE),
+            desviacion = sd(cortisol, na.rm = TRUE),
+            coef_var = desviacion / promedio) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = semana, y = coef_var, fill = grupo, color = grupo)) +
+  geom_col(position = "dodge")
+```
+
+## Distribuciones
+
+```{r}
+datos_total %>% 
+  pivot_longer(cols = -c(grupo, semana, hora)) %>% 
+  ggplot(aes(x = grupo, y = value)) +
+  facet_wrap(~name, scales = "free") +
+  geom_boxplot()
+```
+
+## Cortisol vs Amilasa {.tabset .tabset-fade .tabset-pills}
+
+### Por grupo
+
+```{r}
+datos_total %>% 
+  ggplot(aes(x = cortisol, y = amilasa, color = grupo)) +
+  geom_point(size = 2)
+```
+
+### Por grupo y semana
+
+```{r}
+datos_total %>% 
+  ggplot(aes(x = cortisol, y = amilasa, color = grupo)) +
+  facet_wrap(~semana) +
+  geom_point(size = 2)
+```
+
+## Horas vs Cortisol
+
+```{r}
+datos_total %>% 
+  ggplot(aes(x = hora, y = cortisol, color = grupo)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(min(datos_total$hora),
+                                  max(datos_total$hora))) +
+  geom_smooth(se = FALSE)
+```
+
+## Horas vs Amilasa
+
+```{r}
+datos_total %>% 
+  ggplot(aes(x = hora, y = amilasa, color = grupo)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(min(datos_total$hora),
+                                  max(datos_total$hora))) +
+  geom_smooth(se = FALSE)
+```
+
+## Horas vs AOC (dispersión)
+
+```{r}
+datos_total %>% 
+  ggplot(aes(x = hora, y = aoc, color = grupo)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(min(datos_total$hora),
+                                  max(datos_total$hora))) +
+  geom_smooth(se = FALSE)
+```
+
+## Horas vs AOC (boxplot)
+
+```{r}
+datos_total %>% 
+  ggplot(aes(x = as.factor(hora), y = aoc, color = grupo, fill = grupo)) +
+  geom_boxplot(alpha = 0.5) 
+```
+
+# AUDPC {.tabset .tabset-fade .tabset-pills}
+
+## Tabla AUDPC
+
+```{r}
+library(agricolae)
+tabla_audpc <- datos_total %>% 
+  group_by(grupo, semana) %>% 
+  summarise(audpc_cortisol = audpc(cortisol, hora)) %>% 
+  ungroup()
+
+tabla_audpc %>% 
+  pivot_wider(names_from = grupo, values_from = audpc_cortisol)
+```
+
+## Gráfico
+
+```{r}
+tabla_audpc %>% 
+  ggplot(aes(x = as.factor(semana), y = audpc_cortisol, fill = grupo)) +
+  geom_col(position = "dodge") +
+  scale_fill_grey()
+```
+
+## t-student (diferentes varianzas)
+
+```{r}
+t.test(tabla_audpc$audpc_cortisol ~ tabla_audpc$grupo, var.equal = FALSE)
+```
+
+
+```{r}
+prueba <- audpc(datos_total$cortisol, datos_total$hora)
+prueba
+```
+
+# AUDPA {.tabset .tabset-fade .tabset-pills}
+
+## Tabla AOC
+
+```{r}
+tabla_audpa <- datos_total %>%
+  group_by(grupo,semana) %>% 
+  summarise(audpa_amilasa = audpc(amilasa, hora)) %>% 
+  ungroup()
+
+tabla_audpa%>% 
+  pivot_wider(names_from = grupo, values_from = audpa_amilasa)
+```
+## Gráfico
+
+```{r}
+tabla_audpa %>% 
+  ggplot(aes(x = as.factor(semana), y = audpa_amilasa, fill = grupo)) +
+  geom_col(position = "dodge") +
+  scale_fill_grey()
+```
+## t-student (diferentes varianzas)
+
+```{r}
+t.test(tabla_audpa$audpa_amilasa ~ tabla_audpa$grupo, var.equal = FALSE)
+```
+
+# AOC {.tabset .tabset-fade .tabset-pills}
+
+## Tabla AOC
+
+```{r}
+tabla_AOC <- datos_total %>%
+  group_by(grupo,semana) %>% 
+  summarise(audpa_AOC = audpc(aoc, hora)) %>% 
+  ungroup()
+
+tabla_AOC %>% 
+  pivot_wider(names_from = grupo, values_from = audpa_AOC)
+```
+## Gráfico
+
+```{r}
+tabla_AOC %>% 
+  ggplot(aes(x = as.factor(semana), y = audpa_AOC, fill = grupo)) +
+  geom_col(position = "dodge") +
+  scale_fill_grey()
+```
+## t-student (diferentes varianzas)
+
+```{r}
+t.test(tabla_AOC$audpa_AOC ~ tabla_AOC$grupo, var.equal = FALSE)
+```
+
+# Anova de tres vías
+
+```{r}
+model <- aov(cortisol ~ grupo * semana * hora, data=datos_total)
+
+#view summary of three-way ANOVA
+summary(model)
+```
+
+```{r}
+datos_total %>%
+  group_by(grupo) %>%
+  summarize(mean_cortisol = mean(cortisol))
+
+```
